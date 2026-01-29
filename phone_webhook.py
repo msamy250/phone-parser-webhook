@@ -45,7 +45,15 @@ def parse_phone():
         # Extract information
         country_code = str(parsed_number.country_code)
         local_number = str(parsed_number.national_number)
-        country_name = geocoder.description_for_number(parsed_number, "en")
+        
+        # Get country name from region code (e.g., 'US' -> 'United States')
+        import pycountry
+        region_code = phonenumbers.region_code_for_number(parsed_number)
+        try:
+            country_name = pycountry.countries.get(alpha_2=region_code).name
+        except:
+            # Fallback to geocoder if pycountry fails
+            country_name = geocoder.description_for_number(parsed_number, "en")
         
         # Prepare response
         response = {
