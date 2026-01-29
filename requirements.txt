@@ -2,3 +2,4 @@ Flask==3.0.0
 phonenumbers==8.13.26
 flask-cors==4.0.0
 gunicorn==21.2.0
+pycountry==23.12.11
