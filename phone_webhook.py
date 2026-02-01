@@ -333,8 +333,8 @@ def health():
 
 
 if __name__ == '__main__':
-    # Get port from environment variable or use 5000 as default
-    port = int(os.environ.get('PORT', 5000))
+    # Get port from environment variable or use 8000 as default
+    port = int(os.environ.get('PORT', 8000))
     # Run the server (debug=False for production)
     app.run(host='0.0.0.0', port=port, debug=False)
     
