@@ -4,6 +4,8 @@ A Flask webhook application that parses phone numbers and returns local number, 
 
 ## 🚀 Quick Deploy to Cloud (FREE)
 
+**Important:** Make sure to upload the `countries_reference.csv` file along with the other files when deploying!
+
 ### Option 1: Deploy to Render (Recommended - Free Tier)
 
 1. **Create a GitHub repository:**
@@ -67,6 +69,7 @@ git push heroku main
      - `data__local_number`
      - `data__country_code`
      - `data__country_name`
+     - `data__country_reference` (Emersys reference ID)
 
 ### Step 2: Use Parsed Data in Next Steps
 
@@ -89,6 +92,7 @@ Google Sheets - Add Row
     - Phone: {{data__local_number}}
     - Country Code: {{data__country_code}}
     - Country: {{data__country_name}}
+    - Country Ref: {{data__country_reference}}
 ```
 
 ## 🧪 Testing Your Webhook
@@ -112,7 +116,8 @@ curl -X POST https://your-app-name.onrender.com/parse-phone \
     "data": {
         "local_number": "4155552671",
         "country_code": "1",
-        "country_name": "United States"
+        "country_name": "United States",
+        "country_reference": "185"
     }
 }
 ```
@@ -137,7 +142,8 @@ Parse a phone number and get its details.
     "data": {
         "local_number": "4155552671",
         "country_code": "1",
-        "country_name": "United States"
+        "country_name": "United States",
+        "country_reference": "185"
     }
 }
 ```

@@ -12,6 +12,7 @@ Deploy your phone parser webhook to the cloud and connect it to Zapier to proces
 2. Save all the project files in this folder:
    - `phone_webhook.py`
    - `requirements.txt`
+   - `countries_reference.csv` ⚠️ **IMPORTANT - Don't forget this file!**
    - `Procfile`
    - `render.yaml`
    - `runtime.txt`
@@ -62,7 +63,8 @@ Replace `your-app-name` with your actual Render URL.
     "data": {
         "local_number": "4155552671",
         "country_code": "1",
-        "country_name": "United States"
+        "country_name": "United States",
+        "country_reference": "185"
     }
 }
 ```
@@ -115,6 +117,7 @@ Replace `your-app-name` with your actual Render URL.
 - `data__local_number`
 - `data__country_code`
 - `data__country_name`
+- `data__country_reference`
 
 ✅ **Your webhook is connected to Zapier!**
 
@@ -129,6 +132,7 @@ Replace `your-app-name` with your actual Render URL.
    - Use `data__local_number` for the phone number
    - Use `data__country_code` for country code
    - Use `data__country_name` for country name
+   - Use `data__country_reference` for Emersys country reference ID
 
 4. Click "Test action"
 5. Click "Publish" to turn on your Zap
@@ -140,7 +144,7 @@ Replace `your-app-name` with your actual Render URL.
 Now every time someone submits a Meta Lead Ad:
 1. Zapier captures the lead
 2. Sends the phone number to your webhook
-3. Gets back the parsed data (local number, country code, country name)
+3. Gets back the parsed data (local number, country code, country name, country reference)
 4. Sends it to your destination (Google Sheets, CRM, etc.)
 
 ---
@@ -157,10 +161,11 @@ Now every time someone submits a Meta Lead Ad:
     - Local: 4155552671
     - Code: 1
     - Country: United States
+    - Reference: 185
     
 📊 Google Sheets - Add New Row
-    | Name | Phone | Country Code | Country |
-    | John | 4155552671 | 1 | United States |
+    | Name | Phone | Country Code | Country | Ref |
+    | John | 4155552671 | 1 | United States | 185 |
 ```
 
 ---
