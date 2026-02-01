@@ -71,6 +71,31 @@ def get_country_reference(country_name):
     
     return None
 
+def detect_country_from_local_number(phone_number_str):
+    """
+    Detect country from local phone number patterns
+    Returns country code (e.g., 'EG', 'US') or None
+    """
+    # Remove spaces, dashes, parentheses
+    clean_number = ''.join(filter(str.isdigit, phone_number_str))
+    
+    # Egyptian mobile patterns (starts with 010, 011, 012, 015)
+    if len(clean_number) == 11 and clean_number.startswith(('010', '011', '012', '015')):
+        return 'EG'
+    
+    # Egyptian landline patterns (starts with 0 + area code)
+    # Cairo: 02, Alexandria: 03, etc.
+    if len(clean_number) >= 9 and clean_number.startswith('0'):
+        if clean_number[1:3] in ['02', '03', '04', '05', '06', '07', '08', '09']:
+            return 'EG'
+    
+    # Add more country patterns here if needed
+    # US 10-digit numbers (without country code)
+    if len(clean_number) == 10:
+        return 'US'
+    
+    return None
+
 @app.route('/parse-phone', methods=['POST'])
 def parse_phone():
     """
@@ -79,15 +104,18 @@ def parse_phone():
     Expected JSON input:
     {
         "phone_number": "+1234567890"
+        OR
+        "phone_number": "01234567890"  (Egyptian local number)
     }
     
     Returns:
     {
         "success": true,
         "data": {
-            "local_number": "234567890",
-            "country_code": "1",
-            "country_name": "United States"
+            "local_number": "1234567890",
+            "country_code": "20",
+            "country_name": "Egypt",
+            "country_reference": "53"
         }
     }
     """
@@ -101,18 +129,36 @@ def parse_phone():
                 "error": "Missing 'phone_number' in request body"
             }), 400
         
-        phone_number_str = data['phone_number']
+        phone_number_str = str(data['phone_number']).strip()
+        
+        # Try to detect country from local number patterns
+        detected_country = None
+        if not phone_number_str.startswith('+'):
+            detected_country = detect_country_from_local_number(phone_number_str)
         
         # Parse the phone number
-        parsed_number = phonenumbers.parse(phone_number_str, None)
+        try:
+            parsed_number = phonenumbers.parse(phone_number_str, detected_country)
+        except phonenumbers.NumberParseException:
+            # If parsing fails and we haven't tried country detection, try it
+            if detected_country is None:
+                detected_country = detect_country_from_local_number(phone_number_str)
+                if detected_country:
+                    parsed_number = phonenumbers.parse(phone_number_str, detected_country)
+                else:
+                    raise
         
         # Extract information
         country_code = str(parsed_number.country_code)
         local_number = str(parsed_number.national_number)
         
+        # For Egyptian numbers, preserve the leading 0 in local format
+        region_code = phonenumbers.region_code_for_number(parsed_number)
+        if region_code == 'EG' and not local_number.startswith('0'):
+            local_number = '0' + local_number
+        
         # Get country name from region code (e.g., 'US' -> 'United States')
         import pycountry
-        region_code = phonenumbers.region_code_for_number(parsed_number)
         try:
             country_name = pycountry.countries.get(alpha_2=region_code).name
         except:
