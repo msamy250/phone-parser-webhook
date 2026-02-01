@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import phonenumbers
@@ -300,6 +299,19 @@ def parse_phone():
         
         # Get country reference from the mapping
         country_reference = get_country_reference(country_name)
+        
+        # Validate that all fields have values
+        if not local_number or not country_code or not country_name:
+            return jsonify({
+                "success": False,
+                "error": "Unable to parse phone number completely",
+                "data": {
+                    "local_number": local_number or None,
+                    "country_code": country_code or None,
+                    "country_name": country_name or None,
+                    "country_reference": country_reference
+                }
+            }), 400
         
         # Prepare response
         response = {
