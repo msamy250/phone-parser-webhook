@@ -203,20 +203,8 @@ def parse_phone():
     
     Expected JSON input:
     {
-        "phone_number": "+1234567890"
-        OR
-        "phone_number": "01234567890"  (Egyptian local number)
-    }
-    
-    Returns:
-    {
-        "success": true,
-        "data": {
-            "local_number": "1234567890",
-            "country_code": "20",
-            "country_name": "Egypt",
-            "country_reference": "53"
-        }
+        "phone_number": "505237982",
+        "country_hint": "AE"   ← Optional: pass Facebook's country field to resolve conflicts
     }
     """
     try:
@@ -231,10 +219,179 @@ def parse_phone():
         
         phone_number_str = str(data['phone_number']).strip()
         
+        # Optional country hint to resolve ambiguous numbers (e.g. UAE vs Saudi)
+        # Meta sends country in various formats: 'AE', 'UAE', 'United Arab Emirates', 'SA', 'Saudi Arabia', etc.
+        # This is completely optional - detection still works without it
+        country_hint_raw = str(data.get('country_hint', '') or '').strip()
+        
+        # Normalize ALL Meta country name variations to ISO 2-letter codes
+        COUNTRY_HINT_MAP = {
+            # ── ISO 2-letter codes (Meta sometimes sends these directly) ──
+            'AE': 'AE', 'SA': 'SA', 'EG': 'EG', 'IN': 'IN', 'PK': 'PK',
+            'PH': 'PH', 'TR': 'TR', 'KW': 'KW', 'BH': 'BH', 'QA': 'QA',
+            'JO': 'JO', 'NP': 'NP', 'GB': 'GB', 'US': 'US', 'CA': 'CA',
+            'DE': 'DE', 'FR': 'FR', 'IT': 'IT', 'ES': 'ES', 'AU': 'AU',
+            'OM': 'OM', 'LB': 'LB', 'IQ': 'IQ', 'SY': 'SY', 'YE': 'YE',
+            'MA': 'MA', 'DZ': 'DZ', 'TN': 'TN', 'LY': 'LY', 'SD': 'SD',
+            'NG': 'NG', 'KE': 'KE', 'ZA': 'ZA', 'GH': 'GH', 'ET': 'ET',
+
+            # ── UAE variations ──
+            'UNITED ARAB EMIRATES': 'AE',
+            'UAE': 'AE',
+            'U.A.E': 'AE',
+            'U.A.E.': 'AE',
+            'EMIRATES': 'AE',
+            'DUBAI': 'AE',
+            'ABU DHABI': 'AE',
+            'SHARJAH': 'AE',
+
+            # ── Saudi Arabia variations ──
+            'SAUDI ARABIA': 'SA',
+            'SAUDI': 'SA',
+            'KSA': 'SA',
+            'K.S.A': 'SA',
+            'K.S.A.': 'SA',
+            'KINGDOM OF SAUDI ARABIA': 'SA',
+            'RIYADH': 'SA',
+            'JEDDAH': 'SA',
+
+            # ── Egypt variations ──
+            'EGYPT': 'EG',
+            'MISR': 'EG',
+            'CAIRO': 'EG',
+            'ALEXANDRIA': 'EG',
+
+            # ── India variations ──
+            'INDIA': 'IN',
+            'IND': 'IN',
+            'BHARAT': 'IN',
+            'MUMBAI': 'IN',
+            'DELHI': 'IN',
+            'BANGALORE': 'IN',
+
+            # ── Pakistan variations ──
+            'PAKISTAN': 'PK',
+            'PAK': 'PK',
+            'KARACHI': 'PK',
+            'LAHORE': 'PK',
+
+            # ── Philippines variations ──
+            'PHILIPPINES': 'PH',
+            'FILIPINAS': 'PH',
+            'PHL': 'PH',
+            'MANILA': 'PH',
+
+            # ── Turkey variations ──
+            'TURKEY': 'TR',
+            'TURKIYE': 'TR',
+            'TUR': 'TR',
+            'ISTANBUL': 'TR',
+
+            # ── Kuwait variations ──
+            'KUWAIT': 'KW',
+            'KWT': 'KW',
+            'KUWAIT CITY': 'KW',
+
+            # ── Bahrain variations ──
+            'BAHRAIN': 'BH',
+            'BHR': 'BH',
+            'MANAMA': 'BH',
+
+            # ── Qatar variations ──
+            'QATAR': 'QA',
+            'QAT': 'QA',
+            'DOHA': 'QA',
+
+            # ── Jordan variations ──
+            'JORDAN': 'JO',
+            'JOR': 'JO',
+            'AMMAN': 'JO',
+
+            # ── Nepal variations ──
+            'NEPAL': 'NP',
+            'NPL': 'NP',
+            'KATHMANDU': 'NP',
+
+            # ── UK variations ──
+            'UNITED KINGDOM': 'GB',
+            'UK': 'GB',
+            'GBR': 'GB',
+            'GREAT BRITAIN': 'GB',
+            'ENGLAND': 'GB',
+            'BRITAIN': 'GB',
+            'LONDON': 'GB',
+
+            # ── USA variations ──
+            'UNITED STATES': 'US',
+            'UNITED STATES OF AMERICA': 'US',
+            'USA': 'US',
+            'U.S.A': 'US',
+            'U.S.A.': 'US',
+            'AMERICA': 'US',
+
+            # ── Canada variations ──
+            'CANADA': 'CA',
+            'CAN': 'CA',
+            'TORONTO': 'CA',
+            'VANCOUVER': 'CA',
+
+            # ── Oman variations ──
+            'OMAN': 'OM',
+            'MUSCAT': 'OM',
+
+            # ── Lebanon variations ──
+            'LEBANON': 'LB',
+            'BEIRUT': 'LB',
+
+            # ── Iraq variations ──
+            'IRAQ': 'IQ',
+            'BAGHDAD': 'IQ',
+
+            # ── Morocco variations ──
+            'MOROCCO': 'MA',
+            'MAROC': 'MA',
+            'CASABLANCA': 'MA',
+        }
+
+        # Normalize the hint (uppercase, trimmed) and look up
+        country_hint = COUNTRY_HINT_MAP.get(country_hint_raw.upper()) if country_hint_raw else None
+        
         # Try to detect country from local number patterns
         detected_country = None
         if not phone_number_str.startswith('+'):
             detected_country = detect_country_from_local_number(phone_number_str)
+        
+        # Apply country_hint to resolve ambiguous cases
+        # Only override pattern detection when there's genuine ambiguity
+        if country_hint and not phone_number_str.startswith('+'):
+            clean = ''.join(filter(str.isdigit, phone_number_str))
+            length = len(clean)
+            valid_hints = {'AE','SA','EG','IN','PK','PH','TR','KW','BH','QA',
+                           'JO','NP','GB','US','CA','OM','LB','IQ','SY','YE',
+                           'MA','DZ','TN','LY','SD','NG','KE','ZA','GH','ET'}
+            
+            if country_hint in valid_hints:
+                # Case 1: No detection at all → trust the hint
+                if detected_country is None:
+                    detected_country = country_hint
+                
+                # Case 2: UAE vs Saudi ambiguity
+                # 9-digit numbers starting with 5 could be UAE or Saudi (without leading 0)
+                elif length == 9 and clean[0] == '5' and country_hint in ('AE', 'SA'):
+                    detected_country = country_hint
+                
+                # Case 3: Pattern detected a country but hint disagrees
+                # Only override if hint is plausible for this number length/prefix
+                elif detected_country != country_hint:
+                    # Trust hint over pattern for ambiguous Gulf numbers (5x, 9 digits)
+                    if length == 9 and clean[0] in ('5', '6') and country_hint in ('AE', 'KW', 'QA', 'BH', 'OM'):
+                        detected_country = country_hint
+                    # Trust hint for 8-digit Gulf numbers (KW, BH, QA overlap)
+                    elif length == 8 and country_hint in ('KW', 'BH', 'QA'):
+                        detected_country = country_hint
+                    # Trust hint for 10-digit numbers (SA, IN, PK, JO overlap)
+                    elif length == 10 and country_hint in ('SA', 'IN', 'PK', 'JO'):
+                        detected_country = country_hint
         
         # Parse the phone number
         try:
@@ -320,7 +477,8 @@ def parse_phone():
                 "local_number": local_number,
                 "country_code": country_code,
                 "country_name": country_name,
-                "country_reference": country_reference
+                "country_reference": country_reference,
+                "country_hint_used": country_hint if country_hint else None
             }
         }
         
@@ -345,8 +503,8 @@ def health():
 
 
 if __name__ == '__main__':
-    # Get port from environment variable or use 8000 as default
-    port = int(os.environ.get('PORT', 8000))
+    # Get port from environment variable or use 5000 as default
+    port = int(os.environ.get('PORT', 5000))
     # Run the server (debug=False for production)
     app.run(host='0.0.0.0', port=port, debug=False)
     
